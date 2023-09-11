@@ -19,8 +19,12 @@ PG_FUNCTION_INFO_V1(uuid_generate_v7);
 Datum uuid_generate_v7(PG_FUNCTION_ARGS)
 {
 	pg_uuid_t *uuid = palloc(UUID_LEN);
+	uint8_t extra_ts_p = 0;
 	struct timespec ts;
 	uint64_t tms;
+
+	if (!PG_ARGISNULL(0))
+		extra_ts_p = PG_GETARG_INT32(0);
 
 	if (!pg_strong_random(uuid, UUID_LEN))
 		ereport(ERROR,
@@ -38,6 +42,13 @@ Datum uuid_generate_v7(PG_FUNCTION_ARGS)
 	tms = ((uint64_t)ts.tv_sec * 1000) + ((uint64_t)ts.tv_nsec / 1000000);
 	tms = pg_hton64(tms << 16);
 	memcpy(&uuid->data[0], &tms, 6);
+
+	if (extra_ts_p > 1 && extra_ts_p <= 12) {
+		tms = (((uint64_t)ts.tv_nsec << extra_ts_p) / 1000000)
+				& ((1 << extra_ts_p) - 1);
+		tms = pg_hton64(tms << 48);
+		memcpy(&uuid->data[6], &tms, 2);
+	}
 
 	/*
 	 * Set magic numbers for a "version 7" UUID, see
