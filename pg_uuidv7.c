@@ -21,33 +21,40 @@ Datum uuid_generate_v7(PG_FUNCTION_ARGS)
 	pg_uuid_t *uuid = palloc(UUID_LEN);
 	uint8_t extra_ts_p = 0;
 	struct timespec ts;
-	uint64_t tms;
+	uint64_t data;
+	uint16_t tmp;
 
 	if (!PG_ARGISNULL(0))
 		extra_ts_p = PG_GETARG_INT32(0);
 
-	if (!pg_strong_random(uuid, UUID_LEN))
+	if (!pg_strong_random(&uuid->data[6], UUID_LEN - 6))
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("could not generate random values")));
 
 	/*
-	 * Set first 48 bits to unix epoch timestamp
+	 * Set first 48 bits to unix epoch timestamp; optionally
+	 * set fractional milliseconds starting from 52nd bit
 	 */
 	if (clock_gettime(CLOCK_REALTIME, &ts) != 0)
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("could not get CLOCK_REALTIME")));
 
-	tms = ((uint64_t)ts.tv_sec * 1000) + ((uint64_t)ts.tv_nsec / 1000000);
-	tms = pg_hton64(tms << 16);
-	memcpy(&uuid->data[0], &tms, 6);
-
+	data = (((uint64_t)ts.tv_sec * 1000) + ((uint64_t)ts.tv_nsec / 1000000)) << 16;
 	if (extra_ts_p > 1 && extra_ts_p <= 12) {
-		tms = (((uint64_t)ts.tv_nsec << extra_ts_p) / 1000000)
-				& ((1 << extra_ts_p) - 1);
-		tms = pg_hton64(tms << 48);
-		memcpy(&uuid->data[6], &tms, 2);
+		data |= ((((uint64_t)ts.tv_nsec << extra_ts_p) / 1000000)
+						& ((1 << extra_ts_p) - 1)) << (12 - extra_ts_p);
+		if (extra_ts_p < 12) {
+			// preserve generated random bits beyond extra_ts_p
+			memcpy(&tmp, &uuid->data[6], 2);
+			data |= (tmp & ~((~1) << (12 - extra_ts_p - 1)));
+		}
+		data = pg_hton64(data);
+		memcpy(&uuid->data[0], &data, 8);
+	} else {
+		data = pg_hton64(data);
+		memcpy(&uuid->data[0], &data, 6);
 	}
 
 	/*
