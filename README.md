@@ -13,6 +13,14 @@ SELECT uuid_generate_v7();
 --------------------------------------
  018570bb-4a7d-7c7e-8df4-6d47afd8c8fc
 (1 row)
+
+-- to include fractional milliseconds pass the number of bits to use (between 2-12)
+-- 10 bits is sufficient for microsecond resolution
+SELECT uuid_generate_v7(10);
+        uuid_timestamptz_to_v7
+--------------------------------------
+ 018a8b93-c822-78a7-8999-87e18ea60131
+(1 row)
 ```
 
 The timestamp component of these UUIDs can be extracted:
@@ -22,6 +30,13 @@ SELECT uuid_v7_to_timestamptz('018570bb-4a7d-7c7e-8df4-6d47afd8c8fc');
    uuid_v7_to_timestamptz
 ----------------------------
  2023-01-02 04:26:40.637+00
+(1 row)
+
+-- for fractional milliseconds set the second argument to number of bits used (between 2-12)
+SELECT uuid_v7_to_timestamptz('018a8b93-c822-78a7-8999-87e18ea60131', 10);
+    uuid_v7_to_timestamptz     
+-------------------------------
+ 2023-09-12 22:47:12.674541+00
 (1 row)
 ```
 
@@ -39,6 +54,13 @@ SELECT uuid_timestamptz_to_v7('2023-01-02 04:26:40.637+00', true);
         uuid_timestamptz_to_v7
 --------------------------------------
  018570bb-4a7d-7000-8000-000000000000
+(1 row)
+
+-- for fractional milliseconds pass a thrid argument for the number of bits (between 2-12)
+SELECT uuid_timestamptz_to_v7('2023-01-02 04:26:40.637123+00', true, 10);
+        uuid_timestamptz_to_v7
+--------------------------------------
+ 018570bb-4a7d-71f4-8000-000000000000
 (1 row)
 ```
 
@@ -93,3 +115,12 @@ Postgres Docker image:
 ```sh
 docker build . --tag pg_uuidv7
 ```
+
+## Testing
+
+These tests use [PGXS and `pg_regress`
+framework](https://www.postgresql.org/docs/current/extend-pgxs.html). To run the
+tests, first install the extension then run `make installcheck`. The tests will
+recreate a database named `pg_uuidv7_regression`. You can use standard libpq
+environment variables to control the database connection, e.g. `PGPORT=5436 make
+installcheck`.
