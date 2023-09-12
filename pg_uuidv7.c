@@ -75,7 +75,6 @@ Datum uuid_v7_to_timestamptz(PG_FUNCTION_ARGS)
 	uint8_t extra_ts_p = 0;
 	uint64_t ts;
 	uint64_t extra_ts;
-	double frac_millis;
 
 	if (!PG_ARGISNULL(1))
 		extra_ts_p = PG_GETARG_INT32(1);
@@ -85,11 +84,10 @@ Datum uuid_v7_to_timestamptz(PG_FUNCTION_ARGS)
 	ts = 1000 * ts - EPOCH_DIFF_USECS;
 
 	if (extra_ts_p > 1 && extra_ts_p <= 12) {
-		// add fractional millis as microseconds to ts
+		// add fractional millis as microseconds to ts, rounding up
 		memcpy(&extra_ts, &uuid->data[6], 2);
-		extra_ts = (pg_ntoh64(extra_ts) >> 48) & 0xFFF;
-		frac_millis = (double)(extra_ts >> (12 - extra_ts_p)) / (double)(1 << extra_ts_p);
-		ts += (uint64_t)(frac_millis * 1000);
+		extra_ts = ((pg_ntoh64(extra_ts) >> 48) & 0xFFF) >> (12 - extra_ts_p);
+		ts += (uint64_t)((((double)extra_ts + 1.0) / (double)(1 << extra_ts_p)) * 1000);
 	}
 
 	PG_RETURN_TIMESTAMPTZ(ts);
