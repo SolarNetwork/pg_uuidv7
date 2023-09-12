@@ -14,7 +14,7 @@ AS 'MODULE_PATHNAME', 'uuid_v7_to_timestamptz'
 VOLATILE STRICT LANGUAGE C PARALLEL SAFE;
 
 -- create a v7 uuid from a timestamp
-CREATE FUNCTION uuid_timestamptz_to_v7(timestamptz, zero bool = false)
+CREATE FUNCTION uuid_timestamptz_to_v7(timestamptz, zero bool = false, extra_ts_precision int = 0)
 RETURNS uuid
 AS 'MODULE_PATHNAME', 'uuid_timestamptz_to_v7'
 VOLATILE STRICT LANGUAGE C PARALLEL SAFE;
