@@ -4,7 +4,8 @@ DATA = pg_uuidv7--1.3.sql
 
 REGRESS = setup \
 			uuid_timestamptz_to_v7 \
-			uuid_v7_to_timestamptz
+			uuid_v7_to_timestamptz \
+			timestamptz_roundtrip
 
 PG_CONFIG = pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)

@@ -8,7 +8,7 @@ AS 'MODULE_PATHNAME', 'uuid_generate_v7'
 VOLATILE STRICT LANGUAGE C PARALLEL SAFE;
 
 -- extract the timestamp from a v7 uuid
-CREATE FUNCTION uuid_v7_to_timestamptz(uuid)
+CREATE FUNCTION uuid_v7_to_timestamptz(uuid, extra_ts_precision int = 0)
 RETURNS timestamptz
 AS 'MODULE_PATHNAME', 'uuid_v7_to_timestamptz'
 VOLATILE STRICT LANGUAGE C PARALLEL SAFE;

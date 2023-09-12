@@ -99,16 +99,21 @@ Datum uuid_timestamptz_to_v7(PG_FUNCTION_ARGS)
 {
 	pg_uuid_t *uuid = palloc(UUID_LEN);
 	bool zero = false;
+	uint8_t extra_ts_p = 0;
 	uint64_t tms;
+	uint16_t tmp;
 
 	TimestampTz ts = PG_GETARG_TIMESTAMPTZ(0);
 
 	if (!PG_ARGISNULL(1))
 		zero = PG_GETARG_BOOL(1);
 
+	if (!PG_ARGISNULL(2))
+		extra_ts_p = PG_GETARG_INT32(2);
+
 	if (zero)
 		memset(uuid, 0, UUID_LEN);
-	else if (!pg_strong_random(uuid, UUID_LEN))
+	else if (!pg_strong_random(&uuid->data[6], UUID_LEN - 6))
 		ereport(ERROR,
 				(errcode(ERRCODE_INTERNAL_ERROR),
 				 errmsg("could not generate random values")));
@@ -116,6 +121,18 @@ Datum uuid_timestamptz_to_v7(PG_FUNCTION_ARGS)
 	tms = ((uint64_t)ts + EPOCH_DIFF_USECS) / 1000;
 	tms = pg_hton64(tms << 16);
 	memcpy(&uuid->data[0], &tms, 6);
+
+	if (extra_ts_p > 1 && extra_ts_p <= 12) {
+		tms = ((((uint64_t)ts << extra_ts_p) / 1000)
+						& ((1 << extra_ts_p) - 1)) << (12 - extra_ts_p);
+		if (extra_ts_p < 12) {
+			// preserve generated random bits beyond extra_ts_p
+			memcpy(&tmp, &uuid->data[6], 2);
+			tms |= (tmp & ~((~1) << (12 - extra_ts_p - 1)));
+		}
+		tms = pg_hton64(tms << 48);
+		memcpy(&uuid->data[6], &tms, 2);
+	}
 
 	/*
 	 * Set magic numbers for a "version 7" UUID, see
