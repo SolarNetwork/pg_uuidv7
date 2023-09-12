@@ -1,0 +1,6 @@
+SELECT uuid_timestamptz_to_v7('2023-09-12 11:22:33.123456789Z'::timestamptz, TRUE);
+        uuid_timestamptz_to_v7        
+--------------------------------------
+ 018a8920-f523-7000-8000-000000000000
+(1 row)
+
